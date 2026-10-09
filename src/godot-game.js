@@ -15,7 +15,7 @@ export class GodotGame {
     this.onEnd = onEnd;
     this.mode = mode;
     this.network = network;
-    this.input = { x: 0, z: 0, sprint: false };
+    this.input = { x: 0, z: 0, sprint: false, shield: false };
     this.keys = {};
     this.started = true;
     this.finished = false;
@@ -86,7 +86,10 @@ export class GodotGame {
     this.down = (e) => {
       if (
         /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) ||
-        document.querySelector(".modal")
+        document.querySelector(".modal") ||
+        e.target.closest?.(
+          '[data-action="shoot"], [data-action="finesse"], #sprint, #shield',
+        )
       )
         return;
       if (
@@ -98,19 +101,33 @@ export class GodotGame {
       this.keys[e.code] = true;
       this.unlockAudio();
       if (!e.repeat) {
-        if (e.code === "Space") this.action("charge");
+        if (e.code === "Space") {
+          this.finesseShot = e.altKey;
+          this.action("charge");
+        }
         if (e.code === "KeyJ") this.action("pass");
         if (e.code === "KeyK") this.action("switch");
         if (e.code === "KeyL") this.action("tackle");
+        if (e.code === "KeyI") this.action("through");
+        if (e.code === "KeyE") this.action("run");
       }
     };
     this.up = (e) => {
+      if (
+        e.target.closest?.(
+          '[data-action="shoot"], [data-action="finesse"], #sprint, #shield',
+        )
+      )
+        return;
       this.keys[e.code] = false;
-      if (e.code === "Space") this.action("shoot");
+      if (e.code === "Space") {
+        this.action(this.finesseShot ? "finesse" : "shoot");
+        this.finesseShot = false;
+      }
     };
     this.blur = () => {
       this.keys = {};
-      this.input = { x: 0, z: 0, sprint: false };
+      this.input = { x: 0, z: 0, sprint: false, shield: false };
       this.action("shoot");
     };
     window.addEventListener("keydown", this.down);
@@ -131,21 +148,30 @@ export class GodotGame {
       } catch {}
       const pad = Array.from(pads).find(Boolean);
       let padSprint = false;
+      let padShield = false;
       if (pad) {
         const dead = (v) => (Math.abs(v) > 0.18 ? v : 0);
         x += dead(pad.axes[0] || 0);
         z += dead(pad.axes[1] || 0);
         padSprint = !!pad.buttons[7]?.pressed;
+        padShield = !!pad.buttons[6]?.pressed;
         const pressed = pad.buttons.map((b) => b.pressed),
           previous = this.padButtons || [];
         for (const [button, action] of [
-          [0, "pass"],
+          [0, pressed[4] ? "through" : "pass"],
+          [4, "run"],
           [2, "tackle"],
           [3, "switch"],
         ])
           if (pressed[button] && !previous[button]) this.action(action);
-        if (pressed[1] && !previous[1]) this.action("charge");
-        if (!pressed[1] && previous[1]) this.action("shoot");
+        if (pressed[1] && !previous[1]) {
+          this.padFinesse = !!pressed[5];
+          this.action("charge");
+        }
+        if (!pressed[1] && previous[1]) {
+          this.action(this.padFinesse ? "finesse" : "shoot");
+          this.padFinesse = false;
+        }
         this.padButtons = pressed;
       } else this.padButtons = [];
       const len = Math.hypot(x, z);
@@ -156,6 +182,7 @@ export class GodotGame {
       const input = {
         x,
         z,
+        shield: padShield || this.input.shield || !!this.keys.KeyQ,
         sprint:
           padSprint ||
           this.input.sprint ||
@@ -179,7 +206,11 @@ export class GodotGame {
           this.command({ type: "frame", frame: m.frame });
           const controlled = m.frame.controlled[1],
             actor = m.frame.players[controlled];
-          this.onUpdate({ ...m.frame, stamina: actor[8], charge: m.frame.charges?.[1] || 0 });
+          this.onUpdate({
+            ...m.frame,
+            stamina: actor[8],
+            charge: m.frame.charges?.[1] || 0,
+          });
         }
         if (network.role === "guest" && m.type === "engine-finish")
           this.end(m.score);
@@ -208,7 +239,14 @@ export class GodotGame {
         input: { ...(this.currentInput || this.input) },
         action,
       });
-    else this.command({ type: "action", team: 0, action });
+    else {
+      this.command({
+        type: "input",
+        team: 0,
+        ...(this.currentInput || this.input),
+      });
+      this.command({ type: "action", team: 0, action });
+    }
   }
   get paused() {
     return this._paused;

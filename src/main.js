@@ -99,7 +99,7 @@ function arena() {
       : cup
         ? ["Eastfield", "Northbridge", "Kingsport"][cup.round]
         : "Blue Comets";
-  return `<section class="page-heading"><div><div class="eyebrow">${matchMode === "friend" ? "FRIEND MATCH" : cup ? "WEEKEND CUP · " + ["QUARTER-FINAL", "SEMI-FINAL", "FINAL"][cup.round] : "QUICK MATCH · VS AI"}</div><h1>Make every touch count.</h1></div><button class="button outline" id="leave-match">Leave match</button></section><section class="play-card"><div class="match-score"><div><span class="team-badge orange-team">P</span><b>${matchMode === "friend" && connection?.role === "guest" ? "Host" : safe(profile.name)}</b></div><div><strong id="score">0 <i>:</i> 0</strong><span id="clock">1:30</span><span id="energy">STAMINA 100% · SHOT 0%</span></div><div><b>${safe(opponent)}</b><span class="team-badge blue-team">B</span></div></div><div class="play-stadium"><div id="stadium"></div><div class="play-top"><span class="live-tag"><i></i> LIVE PLAY <b>GODOT</b></span><button id="camera">▣ Camera</button></div><div id="goal-banner"></div><div class="play-caption" id="match-message">You’re the orange team. The glowing ring marks your player.</div></div><div class="play-toolbar"><div><span class="status-dot"></span><span>${matchMode === "friend" ? "Connected friend match" : "You vs AI"}</span></div><div><button id="pause" ${matchMode === "friend" ? "disabled" : ""}>Ⅱ Pause</button><button id="help-match">? Controls</button></div></div><div class="touch-controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div><span>MOVE</span></div><div class="action-buttons"><button id="sprint" class="sprint">Sprint</button><button data-action="switch">Switch <kbd>K</kbd></button><button data-action="pass">Pass <kbd>J</kbd></button><button data-action="tackle">Tackle <kbd>L</kbd></button><button data-action="shoot" class="shoot">Shoot <kbd>HOLD</kbd></button></div></div><div class="controls-hint"><span><kbd>WASD</kbd> / <kbd>↑ ↓ ← →</kbd> Move</span><span><kbd>SHIFT</kbd> Sprint</span><span>Hold Shoot for power. Aim with movement. Press L to tackle.</span></div></section>`;
+  return `<section class="page-heading"><div><div class="eyebrow">${matchMode === "friend" ? "FRIEND MATCH" : cup ? "WEEKEND CUP · " + ["QUARTER-FINAL", "SEMI-FINAL", "FINAL"][cup.round] : "QUICK MATCH · VS AI"}</div><h1>Make every touch count.</h1></div><button class="button outline" id="leave-match">Leave match</button></section><section class="play-card"><div class="match-score"><div><span class="team-badge orange-team">P</span><b>${matchMode === "friend" && connection?.role === "guest" ? "Host" : safe(profile.name)}</b></div><div><strong id="score">0 <i>:</i> 0</strong><span id="clock">1:30</span><span id="energy">STAMINA 100% · SHOT 0%</span></div><div><b>${safe(opponent)}</b><span class="team-badge blue-team">B</span></div></div><div class="play-stadium"><div id="stadium"></div><div class="play-top"><span class="live-tag"><i></i> LIVE PLAY <b>GODOT</b></span><button id="camera">▣ Camera</button></div><div id="goal-banner"></div><div class="play-caption" id="match-message">You’re the orange team. The glowing ring marks your player.</div></div><div class="play-toolbar"><div><span class="status-dot"></span><span>${matchMode === "friend" ? "Connected friend match" : "You vs AI"}</span></div><div><button id="pause" ${matchMode === "friend" ? "disabled" : ""}>Ⅱ Pause</button><button id="help-match">? Controls</button></div></div><div class="touch-controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div><span>MOVE</span></div><div class="action-buttons"><button id="sprint" class="sprint">Sprint</button><button data-action="switch">Switch <kbd>K</kbd></button><button data-action="pass">Pass <kbd>J</kbd></button><button id="shield">Shield <kbd>Q</kbd></button><button data-action="through">Through <kbd>I</kbd></button><button data-action="run">Run <kbd>E</kbd></button><button data-action="tackle">Tackle <kbd>L</kbd></button><button data-action="shoot" class="shoot">Shoot <kbd>HOLD</kbd></button><button data-action="finesse" class="finesse">Finesse <kbd>HOLD</kbd></button></div></div><div class="controls-hint"><span><kbd>WASD</kbd> / <kbd>↑ ↓ ← →</kbd> Move</span><span><kbd>SHIFT</kbd> Sprint</span><span>Aim passes with movement. Hold Shoot for power; Finesse for placement. Hold Q to shield or jockey.</span></div></section>`;
 }
 function tournaments() {
   return `<section class="page-heading"><div><div class="eyebrow">A LITTLE SILVERWARE GOES A LONG WAY</div><h1>The Weekend Cup.</h1><p>Win three rounds. Lift the trophy. Come back for more.</p></div><span class="tag">LOCAL TOURNAMENT · VS AI</span></section><div class="tournament-layout"><section class="card cup-feature"><span class="big-trophy">♜</span><span class="eyebrow">8 TEAMS. ONE WINNER.</span><h2>A cup worth chasing.</h2><p>Three-a-side knockout football.<br>90 seconds per match. A draw goes to sudden death.</p><div class="cup-details"><span>3 rounds</span><span>Increasing difficulty</span><span>300 bonus XP</span></div><button class="button orange" id="enter-cup">${cup ? "Resume round " + (cup.round + 1) : "Enter tournament"} <span>→</span></button><small>No entry fee. AI opponents. Progress saved for this session.</small></section><section class="card bracket-card"><div class="section-title"><h2>Your route to the final</h2><span class="subtle">KNOCKOUT</span></div><div class="bracket">${["Quarter-final", "Semi-final", "Final"].map((name, i) => `<div class="bracket-round ${cup?.round === i ? "current" : ""}"><span>0${i + 1}</span><div><small>${name.toUpperCase()}</small><b>${["Eastfield Athletic", "Northbridge United", "Kingsport City"][i]}</b><p>${cup && cup.round > i ? "✓ Won" : cup?.round === i ? "Your next challenge" : "Win to advance"}</p></div><span>${i === 2 ? "♜" : "→"}</span></div>`).join("")}</div><div class="bracket-foot">${profile.cups} trophies in your cabinet. Room for one more?</div></section></div><section class="card future-card"><span class="mode-icon lilac">⇄</span><div><h3>Looking for a human opponent?</h3><p>Invite a friend for a live match. Public tournament lobbies and global rankings need a hosted multiplayer service.</p></div><button class="button outline" id="friend-play">Challenge a friend →</button></section>`;
@@ -273,33 +273,74 @@ function bindControls() {
   document
     .querySelectorAll("[data-action]")
     .forEach((b) => (b.onclick = () => game.action(b.dataset.action)));
-  const shoot = document.querySelector('[data-action="shoot"]');
-  shoot.onclick = null;
-  shoot.onpointerdown = (e) => {
-    e.preventDefault();
-    shoot.setPointerCapture(e.pointerId);
-    game.action("charge");
-    shoot.classList.add("held");
-  };
-  const releaseShot = () => {
-    game.action("shoot");
-    shoot.classList.remove("held");
-  };
-  shoot.onpointerup = releaseShot;
-  shoot.onpointercancel = releaseShot;
-  const sprint = $("#sprint");
-  sprint.onpointerdown = (e) => {
-    e.preventDefault();
-    sprint.setPointerCapture(e.pointerId);
-    game.input.sprint = true;
-    sprint.classList.add("held");
-  };
-  const stop = () => {
-    game.input.sprint = false;
-    sprint.classList.remove("held");
-  };
-  sprint.onpointerup = stop;
-  sprint.onpointercancel = stop;
+  for (const action of ["shoot", "finesse"]) {
+    const button = document.querySelector(`[data-action="${action}"]`);
+    button.onclick = null;
+    let charging = false;
+    button.onpointerdown = (e) => {
+      e.preventDefault();
+      button.setPointerCapture(e.pointerId);
+      charging = true;
+      game.action("charge");
+      button.classList.add("held");
+    };
+    const release = () => {
+      if (!charging) return;
+      charging = false;
+      game.action(action);
+      button.classList.remove("held");
+    };
+    button.onpointerup = release;
+    button.onpointercancel = release;
+    button.onlostpointercapture = release;
+    button.onkeydown = (e) => {
+      if ((e.code === "Enter" || e.code === "Space") && !e.repeat) {
+        e.preventDefault();
+        charging = true;
+        game.action("charge");
+        button.classList.add("held");
+      }
+    };
+    button.onkeyup = (e) => {
+      if (e.code === "Enter" || e.code === "Space") {
+        e.preventDefault();
+        release();
+      }
+    };
+  }
+  for (const [id, input] of [
+    ["sprint", "sprint"],
+    ["shield", "shield"],
+  ]) {
+    const button = $("#" + id);
+    button.onpointerdown = (e) => {
+      e.preventDefault();
+      button.setPointerCapture(e.pointerId);
+      game.input[input] = true;
+      button.classList.add("held");
+    };
+    const release = () => {
+      game.input[input] = false;
+      button.classList.remove("held");
+    };
+    button.onpointerup = release;
+    button.onpointercancel = release;
+    button.onlostpointercapture = release;
+    button.onkeydown = (e) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        game.input[input] = true;
+        button.classList.add("held");
+      }
+    };
+    button.onkeyup = (e) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        release();
+      }
+    };
+    button.onblur = release;
+  }
   const pad = $("#joystick"),
     stick = $("#stick");
   let active = null;
@@ -348,7 +389,7 @@ function closeModal() {
 }
 function help() {
   modal(
-    `<span class="eyebrow">NO PLAYBOOK REQUIRED</span><h2>Get on the ball.</h2><p>You control orange (blue when joining a friend). Attack the opposite goal. Collect a loose ball by moving close. Press L or Tackle to win possession.</p><div class="help-grid"><span><kbd>WASD</kbd> / Arrows</span><b>Move your player</b><span><kbd>SPACE</kbd></span><b>Hold to charge; release to shoot</b><span><kbd>J</kbd></span><b>Pass to a teammate</b><span><kbd>K</kbd></span><b>Switch player</b><span><kbd>SHIFT</kbd></span><b>Hold to sprint (uses stamina)</b><span><kbd>L</kbd></span><b>Tackle a nearby opponent</b></div><p>On mobile, use the joystick and action buttons. Matches last 90 seconds. Cup draws continue into sudden death.</p>`,
+    `<span class="eyebrow">NO PLAYBOOK REQUIRED</span><h2>Get on the ball.</h2><p>You control orange (blue when joining a friend). Attack the opposite goal. Collect a loose ball by moving close. Press L or Tackle to win possession.</p><div class="help-grid"><span><kbd>WASD</kbd> / Arrows</span><b>Move your player</b><span><kbd>SPACE</kbd></span><b>Hold to charge; release to shoot</b><span><kbd>J</kbd></span><b>Pass to a teammate</b><span><kbd>I</kbd> / Through</span><b>Lead a teammate into space</b><span><kbd>E</kbd> / Run</span><b>Ask your teammate to make a forward run</b><span><kbd>ALT + SPACE</kbd> / Finesse</span><b>Hold, then release a placed shot</b><span><kbd>Q</kbd> / Shield</span><b>Hold to protect the ball, or jockey when defending</b><span><kbd>K</kbd></span><b>Switch player</b><span><kbd>SHIFT</kbd></span><b>Hold to sprint (uses stamina)</b><span><kbd>L</kbd></span><b>Tackle a nearby opponent</b></div><p>On mobile, use the joystick and action buttons. Matches last 90 seconds. Cup draws continue into sudden death.</p>`,
   );
 }
 function friendModal() {

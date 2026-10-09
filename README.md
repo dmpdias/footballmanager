@@ -24,11 +24,14 @@ The browser engine requires WebGL 2 and WebAssembly. It is single-threaded, so n
 - Shift: sprint; stamina drains and regenerates.
 - Hold Space: charge a shot; release: shoot. Movement up/down aims toward goal corners.
 - J: directional pass toward a teammate; K: switch player.
-- L: tackle; timing and distance matter. Missed tackles briefly slow you down.
-- Mobile: joystick, Sprint, Pass, Switch, Tackle, and hold/release Shoot.
+- I: through pass into space; E: request a forward teammate run.
+- Q (hold): shield the ball or slow down to jockey.
+- Alt + Space: charge/release a placed finesse finish.
+- L: tackle; approach the exposed ball side. Shielding protects from behind; missed tackles have recovery time.
+- Mobile: joystick plus Sprint, Shield, Run, Pass, Through, Switch, Tackle, Shoot and Finesse. Hold/release either shot button.
 - Standard-mapped controller: left stick moves; A passes; hold/release B shoots; X tackles; Y switches; right trigger sprints. Controller hardware has not been physically tested; browser gamepad access is optional and keyboard/touch still work if denied.
 
-Matches are 3v3 including one goalkeeper on each side, with a 90-second active clock. Teammates make support runs; opponents pressure and shoot; keepers predict shot paths, collect and distribute. Arena boards rebound the ball to keep play flowing. Cup ties use sudden death. The camera follows the selected player and ball; Camera toggles a wider view. Goals trigger a camera celebration and synthesized sound. Player animation is procedural and stylized, not motion capture.
+Matches are 3v3 including one goalkeeper on each side, with a 90-second active clock. Dribbling uses timed foot contacts and first-touch control. Teammates seek open passing lanes and run on request; defenders split pressing and receiver coverage. Keepers react to shot paths, catch slower balls and parry fast/high shots into live rebounds. Arena boards rebound the ball to keep play flowing. Cup ties use sudden death. The camera follows the selected player and ball; Camera toggles a wider view. Goals trigger a camera celebration and synthesized sound. Player animation is procedural and stylized, not motion capture.
 
 XP, six personal ranks, trophies, and profile history remain saved in local browser storage. The current AI cup lasts for the page session.
 
@@ -65,4 +68,4 @@ Live peer connectivity remains unverified in this cloud environment, whose manag
 
 ## Tests
 
-Godot's headless suite tests six physical players, rigid-body ball, acceleration, movement, sprint drain, shot charging/trajectory/release, directional passing, tackling, goal detection and cup sudden death. The JavaScript suite covers the retained lobby/legacy renderer simulation. Browser verification exercises the actual WebAssembly export and UI bridge, keyboard/touch controls, loading, pause, camera and layout. See docs/gameplay-engine.md for current evidence and limitations.
+Run npm run engine:test for 15 engine checks and 23 match scenarios. Scenarios exercise actual pass delivery, interceptions, through-ball reception, sprint turns, requested runs, shielding, tackle recovery, keeper parries, shot aim, missed goals and pause. The JavaScript suite covers the retained lobby/legacy renderer simulation. Browser verification exercises the actual WebAssembly export and UI bridge, keyboard/touch controls, loading, pause, camera and layout. See docs/gameplay-engine.md for current evidence and limitations.

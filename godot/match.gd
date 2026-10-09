@@ -1,9 +1,13 @@
 extends Node3D
 
+const Actions = preload("res://football_actions.gd")
+const Tactics = preload("res://team_ai.gd")
+
 const FIELD_X := 20.0
 const FIELD_Z := 13.0
 const GOAL_HALF := 3.4
 const GAME_LENGTH := 90.0
+var tactics = Tactics.new()
 var players: Array[Dictionary] = []
 var ball: RigidBody3D
 var camera: Camera3D
@@ -29,6 +33,7 @@ var charge := [0.0, 0.0]
 var charging := [false, false]
 var input_vectors := [Vector2.ZERO, Vector2.ZERO]
 var sprinting := [false, false]
+var shielding := [false, false]
 var local_team := 0
 var mode := "practice"
 var difficulty := 1.0
@@ -220,7 +225,7 @@ func build_players() -> void:
 			var sign_x := 1.0 if team == 0 else -1.0
 			var start: Vector3 = [Vector3(-18, 0, 0), Vector3(-5, 0, -2), Vector3(1, 0, 7)][role] * Vector3(sign_x, 1, 1)
 			p.position = start
-			players.append({"body": p, "model": model, "limbs": limbs, "team": team, "role": role, "base": start, "stamina": 100.0, "stunned": 0.0, "tackle_cd": 0.0, "kick_anim": 0.0, "heading": Vector3(sign_x, 0, 0), "target": start})
+			players.append({"body": p, "model": model, "limbs": limbs, "team": team, "role": role, "base": start, "stamina": 100.0, "stunned": 0.0, "tackle_cd": 0.0, "kick_anim": 0.0, "heading": Vector3(sign_x, 0, 0), "target": start, "shield": false, "run_requested": 0.0, "ai_sprint": false, "touch_timer": 0.0, "save_cd": 0.0})
 
 func build_ball() -> void:
 	ball = RigidBody3D.new()
@@ -281,6 +286,7 @@ func apply_command(command: Dictionary) -> void:
 		"input":
 			input_vectors[team] = Vector2(clampf(float(command.get("x", 0)), -1, 1), clampf(float(command.get("z", 0)), -1, 1)).limit_length()
 			sprinting[team] = bool(command.get("sprint", false))
+			shielding[team] = bool(command.get("shield", false))
 		"action": perform_action(str(command.get("action", "")), team)
 		"pause":
 			paused = bool(command.get("value", false))
@@ -294,11 +300,15 @@ func perform_action(action: String, team: int) -> void:
 	match action:
 		"charge":
 			if possessor == controlled[team]: charging[team] = true
-		"shoot":
-			if possessor == controlled[team]: shoot(controlled[team], maxf(0.18, charge[team]))
+		"shoot", "finesse":
+			if possessor == controlled[team]: shoot(controlled[team], maxf(0.18, charge[team]), "finesse" if action == "finesse" else "normal")
 			charging[team] = false
 			charge[team] = 0.0
 		"pass": pass_ball(controlled[team], input_vectors[team])
+		"through": pass_ball(controlled[team], input_vectors[team], true)
+		"run":
+			for i in players.size():
+				if players[i].team == team and players[i].role != 0 and i != controlled[team]: players[i].run_requested = 2.8
 		"switch":
 			var best := -1
 			var dist := INF
@@ -311,38 +321,23 @@ func perform_action(action: String, team: int) -> void:
 			if best >= 0: controlled[team] = best
 		"tackle": tackle(controlled[team])
 
-func shoot(index: int, power: float) -> void:
+func shoot(index: int, power: float, variant: String = "normal", aim_override: Variant = null) -> void:
 	if possessor != index: return
 	var p: Dictionary = players[index]
-	var side := 1.0 if p.team == 0 else -1.0
-	var aim: Vector2 = input_vectors[p.team] if index == controlled[p.team] else Vector2.ZERO
-	var target := Vector3(side * 21.0, 0, clampf(p.body.position.z * 0.13 + aim.y * 3.0, -3.1, 3.1))
-	var direction: Vector3 = (target - p.body.position).normalized()
-	var speed := lerpf(15.0, 28.0, clampf(power, 0, 1))
-	kick(index, direction * speed + Vector3.UP * lerpf(0.9, 4.6, power), "SHOT")
-	message = "A charged strike!" if power > 0.65 else "Quick shot. Find the corner!"
+	var aim: Vector2 = aim_override if aim_override is Vector2 else input_vectors[p.team] if index == controlled[p.team] else Vector2.ZERO
+	kick(index, Actions.shot_velocity(p, power, aim, variant), "SHOT")
+	message = "Placed finish. Aim for the corner." if variant == "finesse" else "A charged strike!" if power > 0.65 else "Quick shot. Find the corner!"
 
-func pass_ball(index: int, aim: Vector2 = Vector2.ZERO) -> void:
+func pass_ball(index: int, aim: Vector2 = Vector2.ZERO, through: bool = false) -> void:
 	if possessor != index: return
-	var p: Dictionary = players[index]
-	var best := -1
-	var value := -INF
-	var side := 1.0 if p.team == 0 else -1.0
-	for i in players.size():
-		if i == index or players[i].team != p.team or players[i].role == 0: continue
-		var offset: Vector3 = players[i].body.position - p.body.position
-		var desirability: float = -offset.length() * 0.2 + offset.x * side * 0.15
-		if aim.length() > 0.2: desirability += Vector2(offset.x, offset.z).normalized().dot(aim.normalized()) * 8.0
-		if desirability > value:
-			best = i
-			value = desirability
-	if best < 0: return
-	var target: Vector3 = players[best].body.position + players[best].body.velocity * 0.25
-	var offset: Vector3 = target - p.body.position
-	receiver = best
-	kick(index, offset.normalized() * clampf(10.5 + offset.length() * 0.32, 11, 19) + Vector3.UP * 0.25, "PASS")
-	controlled[p.team] = best
-	message = "Pass into space. Meet the ball."
+	var plan: Dictionary = Actions.pass_plan(players, index, aim, through)
+	if plan.is_empty(): return
+	receiver = int(plan.receiver)
+	players[receiver].target = plan.target
+	if through: players[receiver].run_requested = 2.8
+	kick(index, plan.velocity, "PASS")
+	controlled[players[index].team] = receiver
+	message = "Through ball! Sprint onto it." if through else "Pass played. Meet the ball with a controlled touch."
 
 func kick(index: int, velocity: Vector3, kind: String) -> void:
 	var p: Dictionary = players[index]
@@ -365,7 +360,7 @@ func tackle(index: int) -> void:
 	p.kick_anim = 0.22
 	if possessor >= 0 and players[possessor].team != p.team:
 		var opponent: Dictionary = players[possessor]
-		if p.body.position.distance_to(opponent.body.position) < 1.8:
+		if Actions.tackle_quality(p, opponent, ball.position) >= 0.5:
 			opponent.stunned = 0.5
 			possessor = index
 			cooldown = 0.25
@@ -373,7 +368,8 @@ func tackle(index: int) -> void:
 			controlled[p.team] = index
 			message = "Clean tackle. Turn defence into attack."
 			return
-	p.stunned = 0.15
+	p.stunned = 0.35
+	message = "Missed tackle. Recover your position."
 
 func _physics_process(dt: float) -> void:
 	if remote_only: return
@@ -394,6 +390,7 @@ func _physics_process(dt: float) -> void:
 	if not OS.has_feature("web") and DisplayServer.get_name() != "headless":
 		input_vectors[0] = Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP))).limit_length()
 		sprinting[0] = Input.is_physical_key_pressed(KEY_SHIFT)
+		shielding[0] = Input.is_physical_key_pressed(KEY_Q)
 	elapsed += dt
 	possession_age += dt
 	for team in 2:
@@ -412,6 +409,8 @@ func _physics_process(dt: float) -> void:
 		p.stunned = maxf(0, p.stunned - dt)
 		p.tackle_cd = maxf(0, p.tackle_cd - dt)
 		p.kick_anim = maxf(0, p.kick_anim - dt)
+		p.run_requested = maxf(0, p.run_requested - dt)
+		p.save_cd = maxf(0, p.save_cd - dt)
 		var body: CharacterBody3D = p.body
 		var human: bool = i == controlled[0] or (mode == "friend" and i == controlled[1])
 		var movement := Vector2.ZERO
@@ -419,37 +418,42 @@ func _physics_process(dt: float) -> void:
 		if human:
 			movement = input_vectors[p.team]
 			sprint = sprinting[p.team] and p.stamina > 5
+			p.shield = shielding[p.team]
 		else:
 			movement = ai_movement(i, nearest[p.team])
-			if possessor >= 0 and players[possessor].team != p.team and body.position.distance_to(players[possessor].body.position) < 1.6 and p.tackle_cd == 0:
-				tackle(i)
+			sprint = p.ai_sprint and p.stamina > 10
+			p.shield = false
 		if p.stunned > 0: movement = Vector2.ZERO
 		var speed := 8.5 if sprint else 5.8
 		if not human and p.team == 1: speed += (difficulty - 1) * 0.28
 		if possessor == i: speed *= 0.91
+		if p.shield: speed *= 0.48
 		p.stamina = clampf(p.stamina + (-20.0 if sprint and movement.length() > 0.1 else 12.0) * dt, 0, 100)
 		var desired := Vector3(movement.x, 0, movement.y) * speed
 		var acceleration := 22.0 if movement.length() > 0.1 else 30.0
+		if movement.length() > 0.1 and body.velocity.length() > 3 and body.velocity.normalized().dot(desired.normalized()) < 0.2: acceleration = 14.0
 		body.velocity.x = move_toward(body.velocity.x, desired.x, acceleration * dt)
 		body.velocity.z = move_toward(body.velocity.z, desired.z, acceleration * dt)
 		body.velocity.y = -1.0 if body.is_on_floor() else body.velocity.y - 9.8 * dt
 		body.move_and_slide()
 		body.position.x = clampf(body.position.x, -19.6, 19.6)
 		body.position.z = clampf(body.position.z, -12.7, 12.7)
-		if movement.length() > 0.12: p.heading = Vector3(movement.x, 0, movement.y).normalized()
+		if movement.length() > 0.12:
+			var facing := Vector3(movement.x, 0, movement.y).normalized()
+			p.heading = p.heading.slerp(facing, minf(1.0, dt * (5.0 if sprint else 10.0))).normalized()
 	if possessor >= 0:
 		var p: Dictionary = players[possessor]
-		var target: Vector3 = p.body.position + p.heading * 0.85 + Vector3.UP * 0.27
-		# Spring-like dribbling: the ball remains a colliding rigid body.
-		ball.linear_velocity = (target - ball.position) * 13.0 + p.body.velocity * 0.7
-		if p.body.position.distance_to(ball.position) > 2.2:
+		var touch: Dictionary = Actions.dribble_step(p, ball.position, ball.linear_velocity, dt, sprinting[p.team] if possessor == controlled[p.team] else p.ai_sprint, p.shield)
+		if touch.touched: ball.linear_velocity = touch.velocity
+		if touch.lost:
 			possessor = -1
 			cooldown = 0.15
 	else:
 		for i in players.size():
 			var p: Dictionary = players[i]
-			var height_ok: bool = ball.position.y < (1.6 if p.role == 0 else 0.75)
-			if cooldown <= 0 and height_ok and p.body.position.distance_to(ball.position) < (1.25 if p.role == 0 else 1.05):
+			if cooldown <= 0 and Actions.can_collect(p, ball.position, ball.linear_velocity):
+				ball.linear_velocity = Actions.first_touch(p, ball.linear_velocity)
+				p.touch_timer = 0.22
 				possessor = i
 				possession_age = 0
 				cooldown = 0.22
@@ -474,37 +478,36 @@ func _physics_process(dt: float) -> void:
 
 func ai_movement(index: int, closest: int) -> Vector2:
 	var p: Dictionary = players[index]
-	var body: CharacterBody3D = p.body
-	var team: int = p.team
-	var side := 1.0 if team == 0 else -1.0
-	var target: Vector3 = p.base
-	# A brief kickoff grace period gives the carrier time to choose the first pass.
-	if elapsed < 1.8 and possessor >= 0 and players[possessor].team != team:
-		var hold: Vector3 = target - body.position
-		return Vector2(hold.x, hold.z).limit_length()
-	if p.role == 0:
-		var projected_z := ball.position.z
-		if absf(ball.linear_velocity.x) > 3:
-			var time_to_goal: float = (p.base.x - ball.position.x) / ball.linear_velocity.x
-			if time_to_goal > 0 and time_to_goal < 1.5: projected_z += ball.linear_velocity.z * time_to_goal
-		target = Vector3(p.base.x, 0, clampf(projected_z, -3, 3))
-		if possessor == index and possession_age > 0.7: pass_ball(index)
-	elif possessor == index:
-		target = Vector3(side * 18, 0, body.position.z * 0.3)
-		if absf(body.position.x - side * 20) < 14 and possession_age > 0.55:
-			shoot(index, 0.4 + difficulty * 0.08)
-		elif possession_age > 2.5: pass_ball(index)
-	elif possessor >= 0 and players[possessor].team == team:
-		# Give the ball carrier a forward passing lane; do not crowd them.
-		var carrier: Vector3 = players[possessor].body.position
-		target = Vector3(clampf(carrier.x + side * 6, -16, 16), 0, -6 if carrier.z > 0 else 6)
-	elif index == closest:
-		target = ball.position + ball.linear_velocity * 0.12
+	if p.stunned > 0: return Vector2.ZERO
+	var decision: Dictionary = tactics.decide(players, ball.position, ball.linear_velocity, possessor, index, closest, possession_age, elapsed, difficulty)
+	p.target = decision.target
+	p.ai_sprint = decision.sprint
+	match decision.action:
+		"pass": pass_ball(index, decision.aim)
+		"shoot": shoot(index, float(decision.power), "normal", decision.aim)
+		"tackle": tackle(index)
+		"save": keeper_save(index)
+	return decision.movement
+
+func keeper_save(index: int) -> void:
+	var p: Dictionary = players[index]
+	if p.save_cd > 0 or p.role != 0 or possessor >= 0: return
+	var offset: Vector3 = ball.position - p.body.position
+	if Vector2(offset.x, offset.z).length() > 1.65 or ball.position.y > 2.4: return
+	p.save_cd = 0.65
+	p.kick_anim = 0.3
+	if ball.linear_velocity.length() < 13.0 and ball.position.y < 1.5:
+		possessor = index
+		possession_age = 0
+		cooldown = 0.25
+		ball.linear_velocity = Vector3.ZERO
+		message = "Keeper holds it. Build again."
 	else:
-		target = Vector3(ball.position.x * 0.5 - side * 4, 0, ball.position.z * 0.45 + (4 if p.role == 2 else -4))
-	p.target = target
-	var direction: Vector3 = target - body.position
-	return Vector2(direction.x, direction.z).limit_length()
+		var side := 1.0 if p.team == 0 else -1.0
+		ball.linear_velocity = Vector3(side * maxf(5, absf(ball.linear_velocity.x) * 0.45), 2.3, signf(offset.z + 0.01) * 7.5)
+		cooldown = 0.2
+		message = "Parried! Chase the rebound."
+		send_event({"type": "sound", "kind": "PASS"})
 
 func register_goal(team: int) -> void:
 	if goal_pause > 0 or finished: return
@@ -532,10 +535,17 @@ func reset_ball(at: Vector3) -> void:
 	cooldown = 0.2
 
 func reset_kickoff(team: int) -> void:
+	tactics = Tactics.new()
 	for p in players:
 		p.body.position = p.base
 		p.body.velocity = Vector3.ZERO
 		p.stunned = 0.0
+		p.touch_timer = 0.0
+		p.run_requested = 0.0
+		p.save_cd = 0.0
+		p.ai_sprint = false
+		p.shield = false
+		p.heading = Vector3.RIGHT if p.team == 0 else Vector3.LEFT
 	controlled = [1, 4]
 	possessor = controlled[team]
 	players[possessor].body.position = Vector3(-1 if team == 0 else 1, 0.01, 0)
@@ -623,10 +633,12 @@ func send_event(event: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if OS.has_feature("web") or not event is InputEventKey or event.echo: return
 	if event.physical_keycode == KEY_SPACE:
-		perform_action("charge" if event.pressed else "shoot", 0)
+		perform_action("charge" if event.pressed else "finesse" if event.alt_pressed else "shoot", 0)
 	elif event.pressed:
 		match event.physical_keycode:
 			KEY_J: perform_action("pass", 0)
+			KEY_I: perform_action("through", 0)
+			KEY_E: perform_action("run", 0)
 			KEY_K: perform_action("switch", 0)
 			KEY_L: perform_action("tackle", 0)
 			KEY_ESCAPE: paused = not paused

@@ -2395,3 +2395,58 @@ footer i {
     padding: 13px 10px;
   }
 }
+
+/* Keep the complete action set within thumb reach. */
+.touch-controls .action-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, 64px);
+  gap: 8px;
+}
+.action-buttons button,
+.action-buttons button:nth-child(2),
+.action-buttons .shoot,
+.action-buttons .sprint,
+.action-buttons .finesse {
+  width: 64px;
+  height: 48px;
+  border-radius: 14px;
+  grid-column: auto;
+  box-shadow: none;
+}
+.action-buttons .finesse {
+  background: #ffe6d4;
+  border-color: #efb995;
+  color: #754326;
+}
+.action-buttons .held {
+  outline: 2px solid #66844b;
+  outline-offset: 1px;
+}
+@media (max-width: 700px) {
+  .touch-controls .action-buttons {
+    grid-template-columns: repeat(3, 58px);
+    gap: 6px;
+  }
+  .action-buttons button,
+  .action-buttons button:nth-child(2),
+  .action-buttons .shoot,
+  .action-buttons .sprint,
+  .action-buttons .finesse {
+    width: 58px;
+    height: 42px;
+    font-size: 9px;
+    gap: 2px;
+    border-radius: 12px;
+    grid-column: auto;
+  }
+  .action-buttons kbd {
+    display: none;
+  }
+  .touch-controls {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .play-stadium {
+    height: clamp(215px, 31dvh, 270px);
+  }
+}
