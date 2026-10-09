@@ -2311,3 +2311,87 @@ footer i {
     transition: none !important;
   }
 }
+.godot-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  pointer-events: none;
+  background: #52786b;
+}
+.engine-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #203e34;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 17px;
+  padding: 30px;
+  text-align: center;
+  color: #eef3dc;
+}
+.engine-loader strong {
+  font-size: 17px;
+}
+.engine-loader small {
+  font-size: 11px;
+  max-width: 300px;
+  line-height: 1.7;
+  color: #b9cba7;
+}
+.engine-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #54735a;
+  border-top-color: #edab76;
+  border-radius: 50%;
+  animation: engine-spin 1s linear infinite;
+}
+@keyframes engine-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+#energy {
+  font-size: 6px !important;
+  color: #91a67a !important;
+  letter-spacing: 0.8px !important;
+}
+.action-buttons .shoot.held {
+  background: #e9b66e;
+  box-shadow: 0 0 0 4px #f4d4a788;
+}
+@media (max-width: 700px) {
+  .main-wrap:has(.play-card) header {
+    display: none;
+  }
+  .main-wrap:has(.play-card) main {
+    padding-top: 16px;
+  }
+  .main-wrap:has(.play-card) .page-heading {
+    margin-bottom: 15px;
+  }
+  .play-stadium {
+    height: clamp(230px, 35dvh, 310px);
+  }
+  .touch-controls .action-buttons {
+    grid-template-columns: repeat(3, 45px);
+  }
+  .action-buttons button:nth-child(2) {
+    width: 45px;
+  }
+  .action-buttons .shoot {
+    grid-column: 2 / span 2;
+    width: 98px;
+    height: 46px;
+  }
+  .controls-hint {
+    display: none;
+  }
+  .match-score {
+    padding: 13px 10px;
+  }
+}

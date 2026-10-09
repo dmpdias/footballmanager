@@ -1,48 +1,68 @@
-# Powerplay
+# Powerplay · Godot gameplay edition
 
-An original, mobile-first arcade football prototype inspired by Power Soccer / Power Challenge. The player controls the footballers, rather than managing a team from the sidelines. Uses Vite, vanilla JavaScript and Three.js; no licensed branding or artwork.
+An original browser arcade football game inspired by Power Soccer. Live matches now use Godot 4.6.3, with real colliding player bodies and a rigid-body ball. The clubhouse still uses Vite/Three.js for its lightweight stadium preview.
 
-## Run locally
+## Play without npm (Mac)
 
-Node.js 22.12+ is required (validated on Node 24).
+Download or update this repository, then extract the included production ZIP and serve it:
 
 ```sh
-npm ci --cache /tmp/football-npm-cache
-npm run dev
+cd ~/Downloads/powerplay
+git pull
+unzip -o powerplay-deploy.zip -d local-game
+cd local-game
+python3 -m http.server 8000
 ```
 
-Open the address printed by Vite. For a production build:
+Open http://localhost:8000 and use Quick play. Keep Terminal open. Ctrl+C stops the server. The ZIP also works with Netlify Drop. For an existing deployment, upload the extracted folder with index.html at its root. Replacing source files alone does not update your deployed game.
+
+The browser engine requires WebGL 2 and WebAssembly. It is single-threaded, so no cross-origin isolation headers are needed. The initial engine download is around 37 MB before HTTP compression; the ZIP is smaller. First load can take time. Hardware acceleration improves performance.
+
+## Match controls
+
+- WASD / arrow keys: move with acceleration and braking.
+- Shift: sprint; stamina drains and regenerates.
+- Hold Space: charge a shot; release: shoot. Movement up/down aims toward goal corners.
+- J: directional pass toward a teammate; K: switch player.
+- L: tackle; timing and distance matter. Missed tackles briefly slow you down.
+- Mobile: joystick, Sprint, Pass, Switch, Tackle, and hold/release Shoot.
+- Standard-mapped controller: left stick moves; A passes; hold/release B shoots; X tackles; Y switches; right trigger sprints. Controller hardware has not been physically tested; browser gamepad access is optional and keyboard/touch still work if denied.
+
+Matches are 3v3 including one goalkeeper on each side, with a 90-second active clock. Teammates make support runs; opponents pressure and shoot; keepers predict shot paths, collect and distribute. Arena boards rebound the ball to keep play flowing. Cup ties use sudden death. The camera follows the selected player and ball; Camera toggles a wider view. Goals trigger a camera celebration and synthesized sound. Player animation is procedural and stylized, not motion capture.
+
+XP, six personal ranks, trophies, and profile history remain saved in local browser storage. The current AI cup lasts for the page session.
+
+## Develop the web interface
+
+Node 22.12+ (validated on 24):
 
 ```sh
+npm ci
+npm run dev
 npm test
 npm run build
-npm run preview
 ```
 
-## Controls
+The predev/prebuild scripts restore the published engine assets from powerplay-deploy.zip into ignored public/engine/ if missing. Editing JavaScript/CSS does not require Godot. Editing Godot scripts requires exporting the engine again before building the site; restored ZIP assets are the last published build, not a compilation of changed source.
 
-- WASD or arrow keys: move; Shift: sprint.
-- Space: shoot; J: pass; K: switch to a teammate.
-- On mobile: movement joystick and Shoot, Pass, Switch, Sprint buttons.
-- Collect the ball by running into it; tackle by getting close to an opponent.
-- Orange attacks the right goal; blue attacks the left.
+## Develop the match engine
 
-Quick matches run for 90 seconds against AI. The Weekend Cup has three increasingly difficult AI opponents. A cup draw continues into sudden death. Completed matches, goals, wins and trophies earn XP. Six ranks are earned from that XP. Profile, rank, and match history are saved in this browser's local storage. The current cup bracket lasts for the page session.
+Install standard Godot 4.6.3 and its matching official export templates. Open godot/project.godot in the editor, or use a godot command on PATH:
 
-## Friend matches
+```sh
+npm run engine:test
+npm run engine:build
+npm run build
+```
 
-Open the deployed site on both devices. Select Play a friend. The host creates an invite code; the other player selects Join, pastes that code, and creates a reply code. Send the reply back to the host and paste it into their reply box. Keep both pages open. The host simulates the match; the guest sends player inputs and receives snapshots through a WebRTC data channel.
+In the cloud environment, export templates are retained at /workspace/.godot-tools/data; set XDG_DATA_HOME=/workspace/.godot-tools/data, XDG_CONFIG_HOME=/workspace/.godot-tools/config and XDG_CACHE_HOME=/workspace/.godot-tools/cache for Godot commands. The downloaded official templates were verified against the release SHA-512 manifest before extraction. Do not disable checksum or TLS verification when refreshing them.
 
-The optional Google STUN server is `stun:stun.l.google.com:19302`. No signaling service, account, or credential is required. Codes contain temporary connection metadata: share them only with the intended opponent. HTTPS or localhost is recommended. There is no TURN relay, reconnection, public matchmaking, global leaderboard, or online tournament service. Restrictive networks or managed browser policies can prevent peer connections. Ranks are local personal progression, not secure global ratings.
+## Multiplayer scope
 
-Live WebRTC gameplay could not be verified in the cloud test environment: its managed Chromium policy disables non-proxied UDP, yielding zero ICE candidates. The app reports this restriction instead of pretending to connect. Remote internet connectivity needs validation on ordinary browsers and compatible networks before an online readiness claim.
+Friend mode uses the same Godot simulation: the host is authoritative, the guest sends input and receives player/ball snapshots over WebRTC. Exchange invite/reply codes through Play a friend. Both players keep their pages open. Optional STUN: stun:stun.l.google.com:19302. No TURN relay, public matchmaking, accounts, global leaderboard or online tournament server is provided. Codes contain temporary connection metadata: share only with your intended opponent.
 
-## Deployment
+Live peer connectivity remains unverified in this cloud environment, whose managed Chromium policy blocks non-proxied UDP. Some networks require a relay. Personal XP is not a secure online competitive rating. Godot improves the simulation foundation; this is a playable arcade prototype, not an FC production-quality replacement.
 
-The repository includes `footballmanager-deploy.zip` for compatibility with the original download link and `powerplay-deploy.zip` for the new game. Both contain the current production build. Download either ZIP from GitHub using Download raw file, extract it, and upload the extracted directory (with index.html at its root) to Netlify Drop. The old deployment will only change after you upload the new build.
+## Tests
 
-## Validation
-
-Seven automated gameplay tests cover movement, sprinting, shooting, passing/switching, goal detection, out-of-goal rebounds, sudden death, and goalkeeper release. Browser checks cover desktop/mobile rendering, no horizontal overflow at 390px, keyboard shooting, pause, profile persistence, cup entry, three-round advancement, XP/trophy calculation and rank persistence. Cup outcome integration tests inject deterministic results to exercise rewards; the physics tests independently exercise real scoring. Peer connection testing remains blocked as described above.
-
-Historical identification was confirmed by the user. External reference-page requests were denied by the cloud proxy, so historical details have not been independently verified. See docs/design.md.
+Godot's headless suite tests six physical players, rigid-body ball, acceleration, movement, sprint drain, shot charging/trajectory/release, directional passing, tackling, goal detection and cup sudden death. The JavaScript suite covers the retained lobby/legacy renderer simulation. Browser verification exercises the actual WebAssembly export and UI bridge, keyboard/touch controls, loading, pause, camera and layout. See docs/gameplay-engine.md for current evidence and limitations.
